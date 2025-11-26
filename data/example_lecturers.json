@@ -1,0 +1,20 @@
+{
+  "lecturers": [
+    {
+      "id": "L001",
+      "name": "Dr. Smith",
+      "max_assessments_per_day": 4,
+      "unavailable_slots": [12, 13]
+    },
+    {
+      "id": "L002",
+      "name": "Prof. Jones",
+      "max_assessments_per_day": 3,
+      "unavailable_slots": [12, 13]
+    }
+  ],
+  "projects": [
+    {"id": "P1", "student": "S1"},
+    {"id": "P2", "student": "S2"}
+  ]
+}
