@@ -1,0 +1,79 @@
+{
+  "time_slots": [
+    {
+      "id": 1,
+      "day": "Monday",
+      "time": "09:00-10:00"
+    },
+    {
+      "id": 2,
+      "day": "Monday",
+      "time": "10:00-11:00"
+    },
+    {
+      "id": 3,
+      "day": "Monday",
+      "time": "11:00-12:00"
+    },
+    {
+      "id": 4,
+      "day": "Monday",
+      "time": "12:00-13:00"
+    },
+    {
+      "id": 5,
+      "day": "Monday",
+      "time": "13:00-14:00"
+    },
+    {
+      "id": 6,
+      "day": "Monday",
+      "time": "14:00-15:00"
+    },
+    {
+      "id": 7,
+      "day": "Monday",
+      "time": "15:00-16:00"
+    },
+    {
+      "id": 8,
+      "day": "Monday",
+      "time": "16:00-17:00"
+    },
+    {
+      "id": 9,
+      "day": "Tuesday",
+      "time": "09:00-10:00"
+    },
+    {
+      "id": 10,
+      "day": "Tuesday",
+      "time": "10:00-11:00"
+    },
+    {
+      "id": 11,
+      "day": "Tuesday",
+      "time": "11:00-12:00"
+    },
+    {
+      "id": 12,
+      "day": "Tuesday",
+      "time": "12:00-13:00"
+    },
+    {
+      "id": 13,
+      "day": "Tuesday",
+      "time": "13:00-14:00"
+    },
+    {
+      "id": 14,
+      "day": "Tuesday",
+      "time": "14:00-15:00"
+    },
+    {
+      "id": 15,
+      "day": "Tuesday",
+      "time": "15:00-16:00"
+    }
+  ]
+}

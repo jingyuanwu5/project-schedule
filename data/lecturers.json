@@ -1,0 +1,73 @@
+{
+  "lecturers": [
+    {
+      "id": "L001",
+      "name": "Steve",
+      "email": "steve@dcu.ie",
+      "max_per_day": 4,
+      "unavailable": [
+        4,
+        5,
+        9,
+        12,
+        14
+      ]
+    },
+    {
+      "id": "L002",
+      "name": "Jack",
+      "email": "jack@dcu.ie",
+      "max_per_day": 3,
+      "unavailable": [
+        4,
+        5,
+        9,
+        10,
+        14
+      ]
+    },
+    {
+      "id": "L003",
+      "name": "Anna",
+      "email": "anna@dcu.ie",
+      "max_per_day": 4,
+      "unavailable": [
+        1,
+        2,
+        4,
+        5,
+        9,
+        10,
+        12,
+        14
+      ]
+    },
+    {
+      "id": "L004",
+      "name": "Tom",
+      "email": "Tom@dcu.ie",
+      "max_per_day": 3,
+      "unavailable": [
+        4,
+        5,
+        10,
+        12,
+        14
+      ]
+    },
+    {
+      "id": "L005",
+      "name": "Grace",
+      "email": "grace@dcu.ie",
+      "max_per_day": 4,
+      "unavailable": [
+        4,
+        5,
+        9,
+        10,
+        14,
+        7
+      ]
+    }
+  ]
+}
