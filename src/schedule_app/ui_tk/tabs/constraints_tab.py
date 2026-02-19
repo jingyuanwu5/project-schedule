@@ -109,6 +109,12 @@ class ConstraintsTab(ttk.Frame):
             font=("TkDefaultFont", 8),
             foreground="#555",
         ).pack(anchor="w")
+        ttk.Label(
+            lf,
+            text="Tip: add timeslots in the Entities tab first, then select the lunch ones here.",
+            font=("TkDefaultFont", 8),
+            foreground="#999",
+        ).pack(anchor="w", pady=(0, 4))
 
         frm = ttk.Frame(lf)
         frm.pack(fill="x", pady=(4, 0))

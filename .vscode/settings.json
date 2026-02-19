@@ -1,5 +1,9 @@
 {
-  "python.analysis.extraPaths": ["./src"],
+  "python.analysis.extraPaths": ["src"],
   "python.analysis.autoSearchPaths": true,
-  "python.analysis.diagnosticMode": "workspace"
+  "python.analysis.diagnosticMode": "workspace",
+  "editor.formatOnSave": false,
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  }
 }

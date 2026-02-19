@@ -284,9 +284,20 @@ class EntitiesTab(ttk.Frame):
         )
         row = ttk.Frame(self._slot_frame)
         row.pack(pady=4)
-        ttk.Button(row, text="Add slot",    command=self._add_slot).pack(side="left", padx=4)
-        ttk.Button(row, text="Delete slot", command=self._del_slot).pack(side="left")
+        ttk.Button(row, text="Add slot",        command=self._add_slot).pack(side="left", padx=4)
+        ttk.Button(row, text="Delete slot",     command=self._del_slot).pack(side="left")
         ttk.Button(row, text="Generate batch…", command=self._generate_slots).pack(side="left", padx=4)
+
+        # format hints below the buttons
+        hint_row = ttk.Frame(self._slot_frame)
+        hint_row.pack(anchor="w", padx=8, pady=(0, 4))
+        ttk.Label(
+            hint_row,
+            text="Date format: YYYY-MM-DD  |  Time format: HH:MM  |  "
+                 "Use 'Generate batch' to create a full day of slots at once.",
+            font=("TkDefaultFont", 8),
+            foreground="#888",
+        ).pack(anchor="w")
 
     def _add_slot(self) -> None:
         if self.cfg is None: return

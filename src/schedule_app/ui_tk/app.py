@@ -141,7 +141,7 @@ class App(tk.Tk):
 
     def _build_statusbar(self) -> None:
         self._status_var = tk.StringVar(
-            value="Welcome — use File -> New or File -> Open to get started."
+            value="No file loaded.  Use File → New or File → Open to get started."
         )
         bar = ttk.Label(
             self,
