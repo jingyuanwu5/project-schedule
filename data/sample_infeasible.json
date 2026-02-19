@@ -1,0 +1,23 @@
+{
+  "meta": { "schema_version": "0.1" },
+  "timeslots": [
+    { "id": "TS1", "date": "2026-03-10", "start": "09:00", "end": "09:30" }
+  ],
+  "lecturers": [
+    { "id": "L1", "name": "Dr. Smith", "available_slot_ids": ["TS1"] },
+    { "id": "L2", "name": "Dr. Jones", "available_slot_ids": [] }
+  ],
+  "students": [
+    { "id": "S1", "name": "Alice", "unavailable_slot_ids": [] },
+    { "id": "S2", "name": "Bob",   "unavailable_slot_ids": [] }
+  ],
+  "projects": [
+    { "id": "P1", "title": "Project A", "student_ids": ["S1"], "supervisor_lecturer_id": "L1" },
+    { "id": "P2", "title": "Project B", "student_ids": ["S2"], "supervisor_lecturer_id": "L2" }
+  ],
+  "constraints": {
+    "rooms": 1, "panel_size": 2,
+    "must_include_supervisor": true,
+    "solver": { "max_time_in_seconds": 3 }
+  }
+}

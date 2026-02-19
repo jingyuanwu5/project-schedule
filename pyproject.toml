@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "schedule-app"
+version = "0.1.0"
+description = "Assessment timetable scheduler using OR-Tools CP-SAT"
+requires-python = ">=3.10"
+dependencies = ["ortools>=9.9"]
+
+[project.optional-dependencies]
+dev = ["pytest>=9.0", "ruff>=0.6", "pyinstaller>=6.0"]
+
+[project.scripts]
+schedule-cli = "schedule_app.cli:main"
+schedule-gui = "schedule_app.ui_tk.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
