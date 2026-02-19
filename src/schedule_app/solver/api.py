@@ -1,9 +1,9 @@
 from __future__ import annotations
-from ..models import Config
-from .result import SolveResult
-from .slice1 import solve_slice1
-from .slice2 import solve_slice2
-from .slice3 import solve_slice3
+from schedule_app.models import Config
+from schedule_app.solver.result import SolveResult
+from schedule_app.solver.slice1 import solve_slice1
+from schedule_app.solver.slice2 import solve_slice2
+from schedule_app.solver.slice3 import solve_slice3
 
 
 def solve(cfg: Config, level: str = "slice3") -> SolveResult:

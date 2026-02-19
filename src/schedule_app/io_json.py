@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .models import (
+from schedule_app.models import (
     Config, Constraints, Lecturer, Project,
     SolverParams, Student, TimeSlot, Weights,
 )

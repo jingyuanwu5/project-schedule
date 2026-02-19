@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
 
-from ..models import Config
+from schedule_app.models import Config
 
 
 class PrecheckError(ValueError):

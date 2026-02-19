@@ -22,9 +22,9 @@ from collections import defaultdict
 
 from ortools.sat.python import cp_model
 
-from .precheck import build_index, ensure_ok
-from .result import ScheduleEntry, SolveResult
-from ..models import Config
+from schedule_app.solver.precheck import build_index, ensure_ok
+from schedule_app.solver.result import ScheduleEntry, SolveResult
+from schedule_app.models import Config
 
 
 def _status_str(s: int) -> str:
