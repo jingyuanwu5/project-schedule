@@ -1,23 +1,21 @@
 """
-Constraints Tab — GUI for editing all constraint fields.
+Constraints Tab — edit all scheduling constraint parameters in the GUI.
 
 Sections:
-  1. Basic          rooms (Spinbox)
-  2. Panel          panel_size, must_include_supervisor
-  3. Lunch slots    multi-select Listbox (no more JSON hand-editing!)
-  4. Weights        span, workload_balance, lunch (Spinboxes)
-  5. Solver         max_time_in_seconds, num_workers
+  1. Basic        rooms
+  2. Panel        panel_size, must_include_supervisor
+  3. Lunch slots  multi-select Listbox — no JSON hand-editing needed
+  4. Weights      span, workload_balance, lunch avoidance
+  5. Solver       time limit, num_workers
 
-ttk.Spinbox is available from Python 3.7+.
-This project targets Python 3.10+.
-Reference: https://docs.python.org/3/library/tkinter.ttk.html
+num_workers semantics (OR-Tools CP-SAT):
+  0 = use all available CPU cores (recommended default)
+  1 = single-threaded, fully reproducible results
+  N = exactly N parallel workers
 
 Lunch slot Listbox:
-  This replaces the previous approach of requiring coordinators to manually
-  edit lunch_slot_ids in the JSON file. Now coordinators can select lunch
-  slots directly from the list of configured timeslots — directly addressing
-  the supervisor requirement for a "user-friendly interface to capture
-  constraints."
+  Coordinators select lunch timeslots directly from the list of configured
+  timeslots. This replaces manually editing lunch_slot_ids in the JSON.
 """
 
 from __future__ import annotations
@@ -37,7 +35,7 @@ class ConstraintsTab(ttk.Frame):
         self.cfg: Optional[Config] = None
         self._build()
 
-    # ── layout ───────────────────────────────────────────────────────────────
+    # ---- layout --------------------------------------------------------------
 
     def _build(self) -> None:
         canvas = tk.Canvas(self)
@@ -50,7 +48,7 @@ class ConstraintsTab(ttk.Frame):
         canvas.create_window((0, 0), window=inner, anchor="nw")
         inner.bind(
             "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
         )
 
         self._build_basic(inner)
@@ -64,44 +62,56 @@ class ConstraintsTab(ttk.Frame):
         lf.pack(fill="x", padx=12, pady=6)
         return lf
 
-    def _labeled_spinbox(
-        self, parent: tk.Widget, label: str, var: tk.StringVar,
-        row: int, from_: int, to: int
+    def _spinbox_row(
+        self,
+        parent: tk.Widget,
+        label: str,
+        var: tk.StringVar,
+        row: int,
+        from_: int,
+        to: int,
+        hint: str = "",
     ) -> None:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", **_PAD)
         ttk.Spinbox(parent, textvariable=var, from_=from_, to=to, width=8).grid(
             row=row, column=1, sticky="w", **_PAD
         )
+        if hint:
+            ttk.Label(
+                parent, text=hint, font=("TkDefaultFont", 8), foreground="#666",
+            ).grid(row=row, column=2, sticky="w", padx=4)
 
-    # ── sections ─────────────────────────────────────────────────────────────
+    # ---- sections ------------------------------------------------------------
 
     def _build_basic(self, parent: tk.Widget) -> None:
         lf = self._section(parent, "Basic")
         self._rooms = tk.StringVar(value="1")
-        self._labeled_spinbox(lf, "Rooms:", self._rooms, 0, from_=1, to=20)
+        self._spinbox_row(lf, "Rooms:", self._rooms, 0, from_=1, to=20,
+                          hint="Number of simultaneous assessment rooms")
 
     def _build_panel(self, parent: tk.Widget) -> None:
         lf = self._section(parent, "Panel")
         self._panel_size = tk.StringVar(value="2")
         self._must_sup   = tk.BooleanVar(value=True)
-        self._labeled_spinbox(lf, "Panel size:", self._panel_size, 0, from_=1, to=10)
+        self._spinbox_row(lf, "Panel size:", self._panel_size, 0, from_=1, to=10,
+                          hint="Number of lecturers on each assessment panel")
         ttk.Checkbutton(
             lf,
-            text="Must include supervisor",
+            text="Supervisor must be on the panel",
             variable=self._must_sup,
-        ).grid(row=1, column=0, columnspan=2, sticky="w", **_PAD)
+        ).grid(row=1, column=0, columnspan=3, sticky="w", **_PAD)
 
     def _build_lunch(self, parent: tk.Widget) -> None:
         lf = self._section(parent, "Lunch slots  (select slots to penalise)")
         ttk.Label(
             lf,
-            text="Hold Ctrl / Cmd to select multiple.",
+            text="Hold Ctrl / Cmd to select multiple. Selected slots are avoided if possible.",
             font=("TkDefaultFont", 8),
             foreground="#555",
         ).pack(anchor="w")
 
         frm = ttk.Frame(lf)
-        frm.pack(fill="x")
+        frm.pack(fill="x", pady=(4, 0))
         self._lunch_lb = tk.Listbox(
             frm,
             selectmode=tk.MULTIPLE,
@@ -114,35 +124,44 @@ class ConstraintsTab(ttk.Frame):
         self._lunch_lb.pack(side="left", fill="x", expand=True)
 
     def _build_weights(self, parent: tk.Widget) -> None:
-        lf = self._section(parent, "Objective weights  (0 = ignore)")
+        lf = self._section(parent, "Objective weights  (0 = ignore this criterion)")
         self._w_span     = tk.StringVar(value="1")
         self._w_workload = tk.StringVar(value="10")
         self._w_lunch    = tk.StringVar(value="3")
-        self._labeled_spinbox(lf, "Span (compact schedule):",   self._w_span,     0, 0, 100)
-        self._labeled_spinbox(lf, "Workload balance:",           self._w_workload, 1, 0, 100)
-        self._labeled_spinbox(lf, "Lunch avoidance:",            self._w_lunch,    2, 0, 100)
+        self._spinbox_row(lf, "Span (compact schedule):", self._w_span,     0, 0, 100,
+                          hint="Minimise total time window of assessments")
+        self._spinbox_row(lf, "Workload balance:",         self._w_workload, 1, 0, 100,
+                          hint="Spread assessments evenly across lecturers")
+        self._spinbox_row(lf, "Lunch avoidance:",          self._w_lunch,    2, 0, 100,
+                          hint="Avoid scheduling assessments in lunch slots")
 
     def _build_solver(self, parent: tk.Widget) -> None:
-        lf = self._section(parent, "Solver")
-        self._max_time   = tk.StringVar(value="10.0")
+        lf = self._section(parent, "Solver settings")
+        self._max_time    = tk.StringVar(value="10.0")
         self._num_workers = tk.StringVar(value="0")
 
         ttk.Label(lf, text="Time limit (seconds):").grid(row=0, column=0, sticky="w", **_PAD)
         ttk.Entry(lf, textvariable=self._max_time, width=10).grid(
             row=0, column=1, sticky="w", **_PAD
         )
-
-        self._labeled_spinbox(lf, "Workers (0 = auto):", self._num_workers, 1, from_=0, to=32)
         ttk.Label(
             lf,
-            text="0 = use all available CPU cores  (OR-Tools num_workers default)",
-            font=("TkDefaultFont", 8),
-            foreground="#555",
-        ).grid(row=2, column=0, columnspan=2, sticky="w", **_PAD)
+            text="Maximum time before returning the best result found so far",
+            font=("TkDefaultFont", 8), foreground="#666",
+        ).grid(row=0, column=2, sticky="w", padx=4)
 
-    # ── public API ────────────────────────────────────────────────────────────
+        self._spinbox_row(lf, "Workers:", self._num_workers, 1, from_=0, to=32)
+        ttk.Label(
+            lf,
+            text="0 = all CPU cores (fastest)   1 = single-thread (reproducible)",
+            font=("TkDefaultFont", 8),
+            foreground="#666",
+        ).grid(row=1, column=2, sticky="w", padx=4)
+
+    # ---- public API ----------------------------------------------------------
 
     def refresh(self, cfg: Config) -> None:
+        """Populate all widgets from cfg.constraints."""
         self.cfg = cfg
         c = cfg.constraints
 
@@ -155,20 +174,17 @@ class ConstraintsTab(ttk.Frame):
         self._max_time.set(str(c.solver.max_time_in_seconds))
         self._num_workers.set(str(c.solver.num_workers))
 
-        # Populate lunch Listbox with current timeslots
+        # Rebuild the lunch listbox from current timeslots
         self._lunch_lb.delete(0, tk.END)
-        for slot in cfg.timeslots:
-            label = slot.label or f"{slot.date} {slot.start}"
-            self._lunch_lb.insert(tk.END, f"{slot.id}  {label}")
-
-        # Re-select previously chosen lunch slots
         lunch_set = set(c.lunch_slot_ids)
         for i, slot in enumerate(cfg.timeslots):
+            label = slot.label or f"{slot.date} {slot.start}"
+            self._lunch_lb.insert(tk.END, f"{slot.id}  {label}")
             if slot.id in lunch_set:
                 self._lunch_lb.selection_set(i)
 
     def write_back(self, cfg: Config) -> None:
-        """Write widget values back to the Config object (called before save/solve)."""
+        """Write widget values back to cfg.constraints (called before save/solve)."""
         c = cfg.constraints
         try:
             c.rooms      = max(1, int(self._rooms.get()))
@@ -177,10 +193,8 @@ class ConstraintsTab(ttk.Frame):
             pass
         c.must_include_supervisor = self._must_sup.get()
 
-        # Collect selected lunch slots
-        sel_indices = self._lunch_lb.curselection()
-        c.lunch_slot_ids = [cfg.timeslots[i].id for i in sel_indices
-                            if i < len(cfg.timeslots)]
+        sel = self._lunch_lb.curselection()
+        c.lunch_slot_ids = [cfg.timeslots[i].id for i in sel if i < len(cfg.timeslots)]
 
         try:
             c.weights.span             = max(0, int(self._w_span.get()))
@@ -188,7 +202,6 @@ class ConstraintsTab(ttk.Frame):
             c.weights.lunch            = max(0, int(self._w_lunch.get()))
         except ValueError:
             pass
-
         try:
             c.solver.max_time_in_seconds = float(self._max_time.get())
         except ValueError:

@@ -255,10 +255,13 @@ class App(tk.Tk):
             if not messagebox.askyesno("Warnings", f"{msg}\n\nContinue anyway?"):
                 return
 
-        self._status_var.set("Solving — please wait...")
+        # read solver level chosen in the Run tab
+        solver_level = self._tab_run.get_solver_level()
+
+        self._status_var.set(f"Solving ({solver_level}) — please wait...")
         self.update()
         try:
-            result = solve(self._cfg, "slice3")
+            result = solve(self._cfg, solver_level)
         except PrecheckError as e:
             messagebox.showerror("Solve error", str(e))
             self._status_var.set("Solve failed.")

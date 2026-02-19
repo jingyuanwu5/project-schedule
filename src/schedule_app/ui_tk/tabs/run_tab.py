@@ -1,15 +1,18 @@
 """
 Run & Output Tab — trigger the solver and display results.
 
-Key fix from review:
-  Results are sorted by the position of each timeslot in cfg.timeslots
-  (i.e. the order the coordinator defined them), NOT by timeslot_id string.
-  This ensures the output always shows chronological order regardless of
-  whether the IDs are TS1/TS2 or Mon-09:00 or anything else.
+Solver level selector:
+  Slice 1  room assignment only (fastest, ignores lecturers)
+  Slice 2  + panel/availability constraints
+  Slice 3  full weighted objective — span, workload balance, lunch avoidance
+           (default; recommended for production use)
 
-CSV export uses utf-8-sig (BOM) encoding so Excel opens it correctly
-without needing to specify the encoding manually.
-Reference: Python csv docs — https://docs.python.org/3/library/csv.html
+Results are sorted by the position of each timeslot in cfg.timeslots
+(the order the coordinator defined them), not by timeslot_id string,
+so the table always reads chronologically regardless of ID format.
+
+CSV export uses utf-8-sig (BOM) so Excel auto-detects UTF-8.
+Reference: Python docs — https://docs.python.org/3/library/csv.html
 """
 
 from __future__ import annotations
@@ -17,7 +20,6 @@ from __future__ import annotations
 import csv
 import json
 import tkinter as tk
-from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Callable, Optional
 
@@ -32,32 +34,65 @@ _STATUS_COLOURS = {
     "UNKNOWN":       "#555555",
 }
 
+_SOLVER_LEVELS = [
+    ("slice3", "Slice 3 — full weighted objective (recommended)"),
+    ("slice2", "Slice 2 — panel + availability only"),
+    ("slice1", "Slice 1 — room assignment only (fastest)"),
+]
+
 
 class RunTab(ttk.Frame):
     def __init__(self, parent: tk.Widget, on_run: Callable[[], None]) -> None:
         super().__init__(parent)
-        self._on_run    = on_run
-        self._result:   Optional[SolveResult] = None
-        self._cfg:      Optional[Config]       = None
+        self._on_run  = on_run
+        self._result: Optional[SolveResult] = None
+        self._cfg:    Optional[Config]       = None
         self._build()
 
+    # ── public API ─────────────────────────────────────────────────────────────
+
+    def get_solver_level(self) -> str:
+        """Return the currently selected solver level string (slice1/2/3)."""
+        return self._solver_var.get()
+
+    # ── layout ─────────────────────────────────────────────────────────────────
+
     def _build(self) -> None:
-        # ── top: run button + status ──────────────────────────────────────────
+        # ── top bar: solver selector + run button + status ────────────────────
         top = ttk.Frame(self, padding=8)
         top.pack(fill="x")
 
+        # solver level selector
+        ttk.Label(top, text="Solver level:").pack(side="left")
+        self._solver_var = tk.StringVar(value="slice3")
+        solver_cb = ttk.Combobox(
+            top,
+            textvariable=self._solver_var,
+            values=[label for _, label in _SOLVER_LEVELS],
+            state="readonly",
+            width=44,
+        )
+        solver_cb.pack(side="left", padx=(4, 16))
+        # map display labels to keys
+        self._level_map = {label: key for key, label in _SOLVER_LEVELS}
+        self._level_display = {key: label for key, label in _SOLVER_LEVELS}
+        # show the default label
+        solver_cb.set(self._level_display["slice3"])
+
         self._run_btn = ttk.Button(
             top,
-            text="▶  Produce assessment timetable",
+            text="Run",
             command=self._on_run,
-            width=36,
+            width=10,
         )
-        self._run_btn.pack(side="left")
+        self._run_btn.pack(side="left", padx=(0, 16))
 
         self._status_var = tk.StringVar(value="No result yet")
-        ttk.Label(top, textvariable=self._status_var, font=("TkDefaultFont", 11, "bold")).pack(
-            side="left", padx=16
-        )
+        ttk.Label(
+            top,
+            textvariable=self._status_var,
+            font=("TkDefaultFont", 11, "bold"),
+        ).pack(side="left")
 
         # ── middle: results treeview ───────────────────────────────────────────
         frm = ttk.Frame(self)
@@ -90,21 +125,15 @@ class RunTab(ttk.Frame):
         ttk.Button(btn_row, text="Export JSON…", command=self._export_json).pack(side="left", padx=4)
         ttk.Button(btn_row, text="Export CSV…",  command=self._export_csv).pack(side="left")
 
-    # ── public API ─────────────────────────────────────────────────────────────
+    # ── public show_result ─────────────────────────────────────────────────────
 
     def show_result(self, result: SolveResult, cfg: Config) -> None:
         self._result = result
         self._cfg    = cfg
-        colour = _STATUS_COLOURS.get(result.status, "#555")
+
+        colour  = _STATUS_COLOURS.get(result.status, "#555")
         obj_str = f"  (obj={result.objective_value})" if result.objective_value is not None else ""
         self._status_var.set(f"Status: {result.status}{obj_str}")
-        self._status_var._label_widget = None  # type: ignore[attr-defined]
-
-        # Find the label widget that shows the status and recolour it
-        for widget in self.winfo_children():
-            for child in widget.winfo_children():
-                if isinstance(child, ttk.Label) and "Status:" in (child.cget("textvariable") or ""):
-                    child.configure(foreground=colour)
 
         # Diagnostics
         self._diag.configure(state="normal")
@@ -115,13 +144,13 @@ class RunTab(ttk.Frame):
 
         # Results table
         self.tree.delete(*self.tree.get_children())
-        if not result.entries: return
+        if not result.entries:
+            return
 
-        # Build timeslot index for chronological sorting (key fix from review)
-        slot_order = {s.id: i for i, s in enumerate(cfg.timeslots)}
-        slot_map   = {s.id: s for s in cfg.timeslots}
-        proj_map   = {p.id: p.title for p in cfg.projects}
-        lec_map    = {l.id: l.name for l in cfg.lecturers}
+        slot_order  = {s.id: i for i, s in enumerate(cfg.timeslots)}
+        slot_map    = {s.id: s for s in cfg.timeslots}
+        proj_map    = {p.id: p.title for p in cfg.projects}
+        lec_map     = {l.id: l.name  for l in cfg.lecturers}
 
         sorted_entries = sorted(
             result.entries,
@@ -129,13 +158,13 @@ class RunTab(ttk.Frame):
         )
 
         for entry in sorted_entries:
-            slot       = slot_map.get(entry.timeslot_id)
+            slot        = slot_map.get(entry.timeslot_id)
             panel_names = ", ".join(lec_map.get(lid, lid) for lid in entry.panel_lecturer_ids)
             self.tree.insert("", "end", values=(
                 entry.timeslot_id,
                 slot.date  if slot else "",
-                f"{slot.start}–{slot.end}" if slot else "",
-                entry.room + 1,                  # display as 1-based
+                f"{slot.start}-{slot.end}" if slot else "",
+                entry.room + 1,
                 proj_map.get(entry.project_id, entry.project_id),
                 panel_names,
             ))
@@ -145,10 +174,10 @@ class RunTab(ttk.Frame):
                 "No schedule found",
                 "The solver could not find a feasible schedule.\n\n"
                 "Suggestions:\n"
-                "  • Add more timeslots or rooms\n"
-                "  • Mark more slots as available for lecturers\n"
-                "  • Reduce panel size\n"
-                "  • Check diagnostics below for specific issues",
+                "  - Add more timeslots or rooms\n"
+                "  - Mark more slots as available for lecturers\n"
+                "  - Reduce panel size\n"
+                "  - Check diagnostics below for specific issues",
             )
 
     # ── export ─────────────────────────────────────────────────────────────────
