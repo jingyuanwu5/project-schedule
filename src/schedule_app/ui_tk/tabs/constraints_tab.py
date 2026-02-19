@@ -26,7 +26,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional
 
-from ...models import Config
+from schedule_app.models import Config
 
 _PAD = {"padx": 12, "pady": 4}
 

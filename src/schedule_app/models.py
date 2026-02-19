@@ -1,11 +1,24 @@
 """
-Data model layer — plain Python dataclasses for every domain object.
+Data model layer for the assessment timetable scheduler.
 
-dataclasses.dataclass generates __init__, __repr__ and __eq__ from the
-field declarations, removing boilerplate while keeping the types explicit.
+Every domain object is a plain Python dataclass. The @dataclass decorator
+generates __init__, __repr__ and __eq__ automatically from field declarations.
 
-Reference: Python docs — dataclasses
+Reference: Python Software Foundation. "dataclasses — Data Classes."
 https://docs.python.org/3/library/dataclasses.html
+
+Design note — flat entities with ID references:
+  Students are independent top-level objects. Projects hold student_ids
+  (a list of string IDs) rather than embedding Student objects directly.
+  Supervisor feedback: "separate student and project objects and link from
+  students to projects rather than embed students in project objects directly."
+
+OR-Tools worker parameter note:
+  SolverParams uses num_workers as the primary field (0 = auto-detect cores).
+  The older num_search_workers is read from JSON for backwards compatibility
+  but is deprecated upstream.
+  Reference: OR-Tools sat_parameters.proto,
+  https://github.com/google/or-tools
 """
 
 from __future__ import annotations
@@ -21,19 +34,16 @@ class TimeSlot:
     date:  str   # YYYY-MM-DD
     start: str   # HH:MM
     end:   str   # HH:MM
-    label: str = ""
+    label: str   = ""
 
 
 @dataclass
 class Lecturer:
     id:   str
     name: str
-    # IDs of slots this lecturer is available for.
-    # Stored as a flat list of references — not embedded objects — so that
-    # changing a slot definition does not require touching every lecturer.
     available_slot_ids: List[str] = field(default_factory=list)
-    max_per_day:  Optional[int] = None
-    max_total:    Optional[int] = None
+    max_per_day: Optional[int]    = None
+    max_total:   Optional[int]    = None
 
 
 @dataclass
@@ -47,49 +57,46 @@ class Student:
 class Project:
     id:    str
     title: str
-    # student_ids holds references by ID rather than embedding Student objects.
-    # This is the "flat entities + ID links" pattern that avoids coupling when
-    # students move between projects or projects gain multiple students.
     student_ids:            List[str] = field(default_factory=list)
     supervisor_lecturer_id: str       = ""
 
 
 @dataclass
 class Weights:
-    """Coefficients for the soft-constraint objective function."""
-    span:             int = 1   # minimise index of the last used slot
-    workload_balance: int = 10  # minimise max-minus-min panel load across lecturers
-    lunch:            int = 3   # penalise slots listed in constraints.lunch_slot_ids
+    """Coefficients for the soft-constraint objective. 0 = ignore that term."""
+    span:             int = 1
+    workload_balance: int = 10
+    lunch:            int = 3
 
 
 @dataclass
 class SolverParams:
     max_time_in_seconds: float = 10.0
-    num_search_workers:  int   = 8
+    # 0 = use all available cores (OR-Tools default).
+    # Preferred over the deprecated num_search_workers field.
+    num_workers: int = 0
 
 
 @dataclass
 class Constraints:
-    rooms:                   int        = 1
-    panel_size:              int        = 2
-    must_include_supervisor: bool       = True
-    lunch_slot_ids:          List[str]  = field(default_factory=list)
-    weights:                 Weights    = field(default_factory=Weights)
+    rooms:                   int          = 1
+    panel_size:              int          = 2
+    must_include_supervisor: bool         = True
+    lunch_slot_ids:          List[str]    = field(default_factory=list)
+    weights:                 Weights      = field(default_factory=Weights)
     solver:                  SolverParams = field(default_factory=SolverParams)
 
 
 @dataclass
 class Config:
-    meta:        Dict[str, Any]  = field(default_factory=dict)
-    timeslots:   List[TimeSlot]  = field(default_factory=list)
-    lecturers:   List[Lecturer]  = field(default_factory=list)
-    students:    List[Student]   = field(default_factory=list)
-    projects:    List[Project]   = field(default_factory=list)
-    constraints: Constraints     = field(default_factory=Constraints)
+    meta:        Dict[str, Any] = field(default_factory=dict)
+    timeslots:   List[TimeSlot] = field(default_factory=list)
+    lecturers:   List[Lecturer] = field(default_factory=list)
+    students:    List[Student]  = field(default_factory=list)
+    projects:    List[Project]  = field(default_factory=list)
+    constraints: Constraints    = field(default_factory=Constraints)
 
     def to_dict(self) -> Dict[str, Any]:
-        # asdict() recursively converts nested dataclasses to plain dicts.
-        # Reference: https://docs.python.org/3/library/dataclasses.html#dataclasses.asdict
         return asdict(self)
 
     def validate(self) -> None:
@@ -97,14 +104,9 @@ class Config:
             raise ValueError("constraints.rooms must be >= 1")
         if self.constraints.panel_size < 1:
             raise ValueError("constraints.panel_size must be >= 1")
-        if min(
-            self.constraints.weights.span,
-            self.constraints.weights.workload_balance,
-            self.constraints.weights.lunch,
-        ) < 0:
-            raise ValueError("All constraint weights must be non-negative")
-
-    # ── convenience look-ups ──────────────────────────────────────────────────
+        w = self.constraints.weights
+        if min(w.span, w.workload_balance, w.lunch) < 0:
+            raise ValueError("All objective weights must be >= 0")
 
     def get_lecturer(self, lid: str) -> Optional[Lecturer]:
         return next((l for l in self.lecturers if l.id == lid), None)

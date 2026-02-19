@@ -1,29 +1,50 @@
 {
-  "meta": { "schema_version": "0.1", "module": "CSC1049" },
+  "meta": {
+    "description": "Sample feasible config — 4 slots, 3 lecturers, 2 projects",
+    "version": "1.0"
+  },
   "timeslots": [
-    { "id": "TS1", "date": "2026-03-10", "start": "09:00", "end": "09:30", "label": "Mon 09:00" },
-    { "id": "TS2", "date": "2026-03-10", "start": "09:30", "end": "10:00", "label": "Mon 09:30" },
-    { "id": "TS3", "date": "2026-03-10", "start": "12:00", "end": "12:30", "label": "Mon 12:00" },
-    { "id": "TS4", "date": "2026-03-10", "start": "14:00", "end": "14:30", "label": "Mon 14:00" }
+    {"id": "TS001", "date": "2026-03-10", "start": "09:00", "end": "09:30", "label": "10 Mar 09:00"},
+    {"id": "TS002", "date": "2026-03-10", "start": "09:30", "end": "10:00", "label": "10 Mar 09:30"},
+    {"id": "TS003", "date": "2026-03-10", "start": "12:00", "end": "12:30", "label": "10 Mar 12:00 (lunch)"},
+    {"id": "TS004", "date": "2026-03-10", "start": "14:00", "end": "14:30", "label": "10 Mar 14:00"}
   ],
   "lecturers": [
-    { "id": "L1", "name": "Dr. Smith",  "available_slot_ids": ["TS1", "TS2", "TS4"] },
-    { "id": "L2", "name": "Dr. Jones",  "available_slot_ids": ["TS1", "TS2", "TS3", "TS4"] }
+    {"id": "L01", "name": "Dr Alice Walsh",  "available_slot_ids": ["TS001","TS002","TS003","TS004"], "max_per_day": null},
+    {"id": "L02", "name": "Dr Bob Murphy",   "available_slot_ids": ["TS001","TS002","TS004"],          "max_per_day": null},
+    {"id": "L03", "name": "Dr Carol O'Brien","available_slot_ids": ["TS001","TS002","TS003","TS004"], "max_per_day": null}
   ],
   "students": [
-    { "id": "S1", "name": "Alice",  "unavailable_slot_ids": [] },
-    { "id": "S2", "name": "Bob",    "unavailable_slot_ids": [] }
+    {"id": "S01", "name": "Emma Byrne",     "unavailable_slot_ids": []},
+    {"id": "S02", "name": "Fionn Gallagher","unavailable_slot_ids": ["TS003"]}
   ],
   "projects": [
-    { "id": "P1", "title": "AI Chatbot",   "student_ids": ["S1"], "supervisor_lecturer_id": "L1" },
-    { "id": "P2", "title": "Web Scraper",  "student_ids": ["S2"], "supervisor_lecturer_id": "L2" }
+    {
+      "id": "P01",
+      "title": "Neural Network Optimisation",
+      "student_ids": ["S01"],
+      "supervisor_lecturer_id": "L01"
+    },
+    {
+      "id": "P02",
+      "title": "Distributed Scheduling Algorithms",
+      "student_ids": ["S02"],
+      "supervisor_lecturer_id": "L02"
+    }
   ],
   "constraints": {
     "rooms": 1,
     "panel_size": 2,
     "must_include_supervisor": true,
-    "lunch_slot_ids": ["TS3"],
-    "weights":  { "span": 1, "workload_balance": 10, "lunch": 3 },
-    "solver":   { "max_time_in_seconds": 10, "num_search_workers": 8 }
+    "lunch_slot_ids": ["TS003"],
+    "weights": {
+      "span": 1,
+      "workload_balance": 10,
+      "lunch": 3
+    },
+    "solver": {
+      "max_time_in_seconds": 10.0,
+      "num_workers": 0
+    }
   }
 }

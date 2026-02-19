@@ -21,7 +21,7 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 from typing import Callable, Optional
 
-from ...models import Config, Lecturer, Project, Student, TimeSlot
+from schedule_app.models import Config, Lecturer, Project, Student, TimeSlot
 
 
 class EntitiesTab(ttk.Frame):

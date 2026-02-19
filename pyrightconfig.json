@@ -1,7 +1,6 @@
 {
   "pythonVersion": "3.12",
   "pythonPlatform": "All",
-  "venvPath": ".",
-  "include": ["src", "tests"],
+  "include": ["src", "tests", "main.py"],
   "extraPaths": ["src"]
 }

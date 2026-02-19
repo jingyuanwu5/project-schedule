@@ -18,7 +18,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional
 
-from ...models import Config
+from schedule_app.models import Config
 
 CELL_W = 56
 CELL_H = 28

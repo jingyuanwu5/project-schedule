@@ -21,8 +21,8 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Callable, Optional
 
-from ...models import Config
-from ...solver.result import SolveResult
+from schedule_app.models import Config
+from schedule_app.solver.result import SolveResult
 
 _STATUS_COLOURS = {
     "OPTIMAL":       "#2e7d32",

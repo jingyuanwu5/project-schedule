@@ -1,12 +1,16 @@
 """
 JSON serialisation / deserialisation for Config objects.
 
-Uses only the Python standard-library json module.  The docs warn that
-parsing large or deeply nested JSON from untrusted sources can be expensive,
-so basic structural validation is applied before domain objects are built.
+Uses only the Python standard-library json module. Parsing large or deeply
+nested JSON from untrusted sources can be expensive, so basic structural
+validation is applied before domain objects are built.
 
-Reference: Python docs — json
+Reference: Python Software Foundation. "json — JSON encoder and decoder."
 https://docs.python.org/3/library/json.html
+
+OR-Tools worker field compatibility:
+  JSON may contain either num_workers (preferred) or the deprecated
+  num_search_workers. We read both and prefer num_workers.
 """
 
 from __future__ import annotations
@@ -15,12 +19,14 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-from schedule_app.models import (Config, Constraints, Lecturer, Project,
-    SolverParams, Student, TimeSlot, Weights)
+from .models import (
+    Config, Constraints, Lecturer, Project,
+    SolverParams, Student, TimeSlot, Weights,
+)
 
 
 class ConfigError(ValueError):
-    """Raised when the config JSON is structurally invalid."""
+    """Raised when the config JSON fails structural validation."""
 
 
 def _require(obj: Dict[str, Any], key: str, ctx: str) -> Any:
@@ -31,20 +37,18 @@ def _require(obj: Dict[str, Any], key: str, ctx: str) -> Any:
 
 def _as_list(obj: Any, ctx: str) -> List[Any]:
     if not isinstance(obj, list):
-        raise ConfigError(f"Expected a JSON array in {ctx}, got {type(obj).__name__}")
+        raise ConfigError(f"Expected JSON array in {ctx}, got {type(obj).__name__}")
     return obj
 
 
 def _as_dict(obj: Any, ctx: str) -> Dict[str, Any]:
     if not isinstance(obj, dict):
-        raise ConfigError(
-            f"Expected a JSON object in {ctx}, got {type(obj).__name__}"
-        )
+        raise ConfigError(f"Expected JSON object in {ctx}, got {type(obj).__name__}")
     return obj
 
 
 def _check_unique_ids(items: list, ctx: str) -> None:
-    seen: set = set()
+    seen: set  = set()
     dupes: set = set()
     for item in items:
         item_id = getattr(item, "id", None)
@@ -62,14 +66,15 @@ def load_config(path: str | Path) -> Config:
     with Path(path).open("r", encoding="utf-8") as f:
         raw = json.load(f)
 
-    raw  = _as_dict(raw, "root")
-    meta = _as_dict(raw.get("meta", {}), "meta")
+    raw = _as_dict(raw, "root")
+    # `or {}` guards against meta being explicitly set to null in the JSON
+    meta = _as_dict(raw.get("meta") or {}, "meta")
 
     timeslots_raw   = _as_list(_require(raw, "timeslots", "root"), "timeslots")
     lecturers_raw   = _as_list(_require(raw, "lecturers",  "root"), "lecturers")
     students_raw    = _as_list(_require(raw, "students",   "root"), "students")
     projects_raw    = _as_list(_require(raw, "projects",   "root"), "projects")
-    constraints_raw = _as_dict(raw.get("constraints", {}), "constraints")
+    constraints_raw = _as_dict(raw.get("constraints") or {}, "constraints")
 
     timeslots = [
         TimeSlot(
@@ -112,8 +117,15 @@ def load_config(path: str | Path) -> Config:
         for i, p in enumerate(projects_raw)
     ]
 
-    weights_raw = _as_dict(constraints_raw.get("weights", {}), "constraints.weights")
-    solver_raw  = _as_dict(constraints_raw.get("solver",  {}), "constraints.solver")
+    weights_raw = _as_dict(constraints_raw.get("weights") or {}, "constraints.weights")
+    solver_raw  = _as_dict(constraints_raw.get("solver")  or {}, "constraints.solver")
+
+    # Prefer num_workers; fall back to deprecated num_search_workers for
+    # compatibility with older config files.
+    num_workers = int(
+        solver_raw.get("num_workers",
+        solver_raw.get("num_search_workers", 0))
+    )
 
     constraints = Constraints(
         rooms                   = int(constraints_raw.get("rooms", 1)),
@@ -127,7 +139,7 @@ def load_config(path: str | Path) -> Config:
         ),
         solver = SolverParams(
             max_time_in_seconds = float(solver_raw.get("max_time_in_seconds", 10.0)),
-            num_search_workers  = int(solver_raw.get("num_search_workers", 8)),
+            num_workers         = num_workers,
         ),
     )
 
@@ -148,11 +160,12 @@ def load_config(path: str | Path) -> Config:
 
 
 def save_config(cfg: Config, path: str | Path) -> None:
-    """Serialise Config to JSON, creating parent directories if needed."""
+    """Serialise Config to JSON. Creates parent directories if needed."""
     cfg.validate()
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("w", encoding="utf-8") as f:
-        # ensure_ascii=False preserves accented names.
-        # sort_keys=True keeps diffs readable in version control.
+        # ensure_ascii=False keeps accented names readable.
+        # sort_keys=True makes version-control diffs predictable.
+        # Reference: https://docs.python.org/3/library/json.html#json.dump
         json.dump(cfg.to_dict(), f, ensure_ascii=False, indent=2, sort_keys=True)

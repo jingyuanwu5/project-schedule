@@ -1,23 +1,29 @@
 {
-  "meta": { "schema_version": "0.1" },
+  "meta": {
+    "description": "Sample INFEASIBLE config — L02 has no available slots so P02 cannot be scheduled",
+    "version": "1.0"
+  },
   "timeslots": [
-    { "id": "TS1", "date": "2026-03-10", "start": "09:00", "end": "09:30" }
+    {"id": "TS001", "date": "2026-03-10", "start": "09:00", "end": "09:30", "label": "10 Mar 09:00"}
   ],
   "lecturers": [
-    { "id": "L1", "name": "Dr. Smith", "available_slot_ids": ["TS1"] },
-    { "id": "L2", "name": "Dr. Jones", "available_slot_ids": [] }
+    {"id": "L01", "name": "Dr Alice Walsh", "available_slot_ids": ["TS001"]},
+    {"id": "L02", "name": "Dr Bob Murphy",  "available_slot_ids": []}
   ],
   "students": [
-    { "id": "S1", "name": "Alice", "unavailable_slot_ids": [] },
-    { "id": "S2", "name": "Bob",   "unavailable_slot_ids": [] }
+    {"id": "S01", "name": "Emma Byrne",     "unavailable_slot_ids": []},
+    {"id": "S02", "name": "Fionn Gallagher","unavailable_slot_ids": []}
   ],
   "projects": [
-    { "id": "P1", "title": "Project A", "student_ids": ["S1"], "supervisor_lecturer_id": "L1" },
-    { "id": "P2", "title": "Project B", "student_ids": ["S2"], "supervisor_lecturer_id": "L2" }
+    {"id": "P01", "title": "Project Alpha", "student_ids": ["S01"], "supervisor_lecturer_id": "L01"},
+    {"id": "P02", "title": "Project Beta",  "student_ids": ["S02"], "supervisor_lecturer_id": "L02"}
   ],
   "constraints": {
-    "rooms": 1, "panel_size": 2,
+    "rooms": 1,
+    "panel_size": 2,
     "must_include_supervisor": true,
-    "solver": { "max_time_in_seconds": 3 }
+    "lunch_slot_ids": [],
+    "weights": {"span": 1, "workload_balance": 10, "lunch": 3},
+    "solver": {"max_time_in_seconds": 5.0, "num_workers": 0}
   }
 }
