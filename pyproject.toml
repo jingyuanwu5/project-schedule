@@ -9,8 +9,9 @@ description = "Assessment timetable scheduler using OR-Tools CP-SAT"
 requires-python = ">=3.10"
 dependencies = ["ortools>=9.9"]
 
+# dev deps: pytest for tests, pyinstaller for building the executable
 [project.optional-dependencies]
-dev = ["pytest>=9.0", "ruff>=0.6", "pyinstaller>=6.0"]
+dev = ["pytest>=9.0", "pyinstaller>=6.0"]
 
 [project.scripts]
 schedule-cli = "schedule_app.cli:main"
@@ -21,7 +22,3 @@ where = ["src"]
 
 [tool.setuptools.package-dir]
 "" = "src"
-
-[tool.ruff]
-line-length = 100
-target-version = "py310"
