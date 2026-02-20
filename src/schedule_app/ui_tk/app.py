@@ -129,7 +129,7 @@ class App(tk.Tk):
     def _build_tabs(self) -> None:
         self._nb = ttk.Notebook(self)
 
-        self._tab_entities     = EntitiesTab(self._nb, on_change=self._mark_dirty)
+        self._tab_entities     = EntitiesTab(self._nb, on_change=self._on_entity_change)
         self._tab_availability = AvailabilityTab(self._nb)
         self._tab_constraints  = ConstraintsTab(self._nb)
         self._tab_run          = RunTab(self._nb, on_run=self.on_run_solver)
@@ -291,9 +291,19 @@ class App(tk.Tk):
         self._tab_availability.flush_to_config()
         self._tab_constraints.write_back(self._cfg)
 
-    def _mark_dirty(self) -> None:
+    def _on_entity_change(self) -> None:
+        """Called by EntitiesTab whenever lecturers/students/projects/timeslots change.
+
+        Refreshes the Availability and Constraints tabs so they stay in sync
+        (e.g. deleting a lecturer removes their row from the grid immediately,
+        deleting a timeslot removes it from the lunch-slot listbox).
+        """
         name = self._filepath.name if self._filepath else "unsaved file"
         self._status_var.set(f"Unsaved changes — {name}")
+        if self._cfg is None:
+            return
+        self._tab_availability.refresh(self._cfg)
+        self._tab_constraints.refresh(self._cfg)
 
 
 def main() -> None:

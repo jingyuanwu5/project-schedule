@@ -111,6 +111,7 @@ class EntitiesTab(ttk.Frame):
         if not sel: return
         lid = self.lec_tree.item(sel[0], "values")[0]
         if not messagebox.askyesno("Confirm", f"Delete lecturer '{lid}'?\n"
+                                   "Their row will be removed from the Availability grid.\n"
                                    "Projects supervised by them will lose their supervisor."):
             return
         self.cfg.lecturers = [l for l in self.cfg.lecturers if l.id != lid]
@@ -119,7 +120,7 @@ class EntitiesTab(ttk.Frame):
                 p.supervisor_lecturer_id = ""
         self._refresh_lecturers()
         self._refresh_projects()
-        self._on_change()
+        self._on_change()   # triggers App._mark_dirty and availability grid rebuild
 
     def _edit_max_per_day(self) -> None:
         if self.cfg is None: return
@@ -312,6 +313,25 @@ class EntitiesTab(ttk.Frame):
         if not start: return
         end   = simpledialog.askstring("Add Slot", "End time (HH:MM):", parent=self)
         if not end: return
+
+        # ── validate formats ──────────────────────────────────────────────────
+        from datetime import datetime
+        try:
+            datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            messagebox.showerror("Invalid date", f"'{date}' is not a valid date.\nUse YYYY-MM-DD (e.g. 2026-03-10).")
+            return
+        try:
+            t_start = datetime.strptime(start, "%H:%M")
+            t_end   = datetime.strptime(end,   "%H:%M")
+        except ValueError:
+            messagebox.showerror("Invalid time", "Start and end times must be in HH:MM format (e.g. 09:00).")
+            return
+        if t_end <= t_start:
+            messagebox.showerror("Invalid time range", f"End time ({end}) must be after start time ({start}).")
+            return
+        # ─────────────────────────────────────────────────────────────────────
+
         label = simpledialog.askstring("Add Slot", "Display label (optional):", parent=self) or ""
         self.cfg.timeslots.append(TimeSlot(id=sid, date=date, start=start, end=end, label=label))
         self._refresh_timeslots()
