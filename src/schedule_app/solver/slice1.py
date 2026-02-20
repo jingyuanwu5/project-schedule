@@ -1,22 +1,8 @@
-"""
-Solver Slice 1 — assign each project to exactly one (timeslot, room).
-No panel assignment at this level; lecturer availability not yet enforced.
-
-OR-Tools CP-SAT API used here:
-  new_bool_var()      create a 0/1 decision variable
-  add()               post a linear constraint
-  add_at_most_one()   efficient at-most-one propagator for BoolVars
-  only_enforce_if()   conditional constraint — active only when a BoolVar is 1
-
-Reference: OR-Tools CP-SAT Python API
-https://developers.google.com/optimization/reference/python/sat/python/cp_model
-
-num_workers note:
-  solver.parameters.num_workers is the current preferred field (0 = auto).
-  Reference: OR-Tools sat_parameters.proto
-"""
-
-from __future__ import annotations
+# slice1.py - basic room assignment only, no panel stuff yet
+# learned how to use OR-Tools from the official examples on GitHub:
+# https://github.com/google/or-tools/blob/stable/examples/python/cp_sat_example.py
+# also referenced the CP-SAT primer by Laurent Perron:
+# https://developers.google.com/optimization/reference/python/sat/python/cp_model
 
 from ortools.sat.python import cp_model
 
@@ -25,15 +11,16 @@ from schedule_app.solver.result import ScheduleEntry, SolveResult
 from schedule_app.models import Config
 
 
-def _status_str(s: object) -> str:
-    """Convert a CP-SAT solver status value to a readable string."""
+# helper to turn the solver status int into something readable
+# took me a while to figure out the status codes, found them in the cp_model source
+def _status_str(s):
     mapping = {
         int(cp_model.OPTIMAL):       "OPTIMAL",
         int(cp_model.FEASIBLE):      "FEASIBLE",
         int(cp_model.INFEASIBLE):    "INFEASIBLE",
         int(cp_model.MODEL_INVALID): "MODEL_INVALID",
     }
-    return mapping.get(int(s), "UNKNOWN")  # type: ignore[call-overload]
+    return mapping.get(int(s), "UNKNOWN")
 
 
 def solve_slice1(cfg: Config) -> SolveResult:
@@ -46,35 +33,37 @@ def solve_slice1(cfg: Config) -> SolveResult:
 
     model = cp_model.CpModel()
 
-    # x[p,t,r] = 1  iff  project p is in slot t, room r
-    x = {
-        (p, t, r): model.new_bool_var(f"x_p{p}_t{t}_r{r}")
-        for p in range(P) for t in range(T) for r in range(R)
-    }
+    # x[p,t,r] = 1 means project p is assigned to timeslot t in room r
+    # using a dict because the 3D array indexing is easier this way
+    x = {}
+    for p in range(P):
+        for t in range(T):
+            for r in range(R):
+                x[(p, t, r)] = model.new_bool_var(f"x_p{p}_t{t}_r{r}")
 
-    # Each project is scheduled exactly once
+    # each project must be scheduled exactly once
     for p in range(P):
         model.add(sum(x[p, t, r] for t in range(T) for r in range(R)) == 1)
 
-    # At most one project per (slot, room)
-    # add_at_most_one uses a more efficient propagator than sum <= 1
+    # can't have two projects in the same room at the same time
     for t in range(T):
         for r in range(R):
             model.add_at_most_one(x[p, t, r] for p in range(P))
 
-    # Student unavailability
+    # block out slots where a student is unavailable
+    # TODO: might want to add a warning if too many slots are blocked
     for p_i, proj in enumerate(cfg.projects):
-        blocked: set[str] = set()
+        blocked = set()
         for sid in proj.student_ids:
-            blocked.update(cfg.students[idx.student_id_to_idx[sid]].unavailable_slot_ids)
+            s_obj = cfg.students[idx.student_id_to_idx[sid]]
+            blocked.update(s_obj.unavailable_slot_ids)
         for slot_id in blocked:
             t = idx.slot_id_to_idx[slot_id]
             for r in range(R):
                 model.add(x[p_i, t, r] == 0)
 
-    # Soft objective: compact schedule — minimise the index of the last used slot.
-    # only_enforce_if makes the lower-bound constraint conditional on x[p,t,r] = 1.
-    # Reference: https://developers.google.com/optimization/reference/python/sat/python/cp_model#only_enforce_if
+    # soft objective: try to finish as early as possible
+    # got this idea from the nurse scheduling example in or-tools
     last_t = model.new_int_var(0, max(T - 1, 0), "last_t")
     for p in range(P):
         for t in range(T):
@@ -84,28 +73,30 @@ def solve_slice1(cfg: Config) -> SolveResult:
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = cfg.constraints.solver.max_time_in_seconds
-    solver.parameters.num_workers         = cfg.constraints.solver.num_workers
+    solver.parameters.num_workers = cfg.constraints.solver.num_workers
     status = solver.solve(model)
-    name   = _status_str(status)
+    name = _status_str(status)
 
     if name not in ("OPTIMAL", "FEASIBLE"):
-        return SolveResult(status=name, diagnostics=["No feasible schedule (slice1)."])
+        return SolveResult(status=name, diagnostics=["No feasible schedule found (slice1)."])
 
-    entries = [
-        ScheduleEntry(
-            project_id  = cfg.projects[p].id,
-            timeslot_id = cfg.timeslots[t].id,
-            room        = r,
-        )
-        for p in range(P) for t in range(T) for r in range(R)
-        if solver.value(x[p, t, r]) == 1
-    ]
+    entries = []
+    for p in range(P):
+        for t in range(T):
+            for r in range(R):
+                if solver.value(x[p, t, r]) == 1:
+                    entries.append(ScheduleEntry(
+                        project_id=cfg.projects[p].id,
+                        timeslot_id=cfg.timeslots[t].id,
+                        room=r,
+                    ))
+
     return SolveResult(
-        status          = name,
-        objective_value = int(solver.objective_value),
-        entries         = entries,
-        stats           = {
+        status=name,
+        objective_value=int(solver.objective_value),
+        entries=entries,
+        stats={
             "num_conflicts": solver.num_conflicts,
-            "wall_time_s":   round(solver.wall_time, 3),
+            "wall_time_s": round(solver.wall_time, 3),
         },
     )

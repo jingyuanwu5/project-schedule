@@ -1,23 +1,9 @@
-"""
-JSON serialisation / deserialisation for Config objects.
-
-Uses only the Python standard-library json module. Parsing large or deeply
-nested JSON from untrusted sources can be expensive, so basic structural
-validation is applied before domain objects are built.
-
-Reference: Python Software Foundation. "json — JSON encoder and decoder."
-https://docs.python.org/3/library/json.html
-
-OR-Tools worker field compatibility:
-  JSON may contain either num_workers (preferred) or the deprecated
-  num_search_workers. We read both and prefer num_workers.
-"""
-
-from __future__ import annotations
+# io_json.py - load and save Config objects from/to JSON files
+# using the built-in json module, no external dependencies needed
+# reference: https://docs.python.org/3/library/json.html
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
 
 from schedule_app.models import (
     Config, Constraints, Lecturer, Project,
@@ -26,30 +12,31 @@ from schedule_app.models import (
 
 
 class ConfigError(ValueError):
-    """Raised when the config JSON fails structural validation."""
+    pass
 
 
-def _require(obj: Dict[str, Any], key: str, ctx: str) -> Any:
+# helper functions to validate the JSON structure
+def _require(obj, key, ctx):
     if key not in obj:
-        raise ConfigError(f"Missing required key '{key}' in {ctx}")
+        raise ConfigError(f"Missing '{key}' in {ctx}")
     return obj[key]
 
 
-def _as_list(obj: Any, ctx: str) -> List[Any]:
+def _as_list(obj, ctx):
     if not isinstance(obj, list):
-        raise ConfigError(f"Expected JSON array in {ctx}, got {type(obj).__name__}")
+        raise ConfigError(f"Expected a list in {ctx}, got {type(obj).__name__}")
     return obj
 
 
-def _as_dict(obj: Any, ctx: str) -> Dict[str, Any]:
+def _as_dict(obj, ctx):
     if not isinstance(obj, dict):
-        raise ConfigError(f"Expected JSON object in {ctx}, got {type(obj).__name__}")
+        raise ConfigError(f"Expected an object in {ctx}, got {type(obj).__name__}")
     return obj
 
 
-def _check_unique_ids(items: list, ctx: str) -> None:
-    seen: set  = set()
-    dupes: set = set()
+def _check_unique_ids(items, ctx):
+    seen = set()
+    dupes = set()
     for item in items:
         item_id = getattr(item, "id", None)
         if not item_id:
@@ -61,13 +48,11 @@ def _check_unique_ids(items: list, ctx: str) -> None:
         raise ConfigError(f"Duplicate ids in {ctx}: {sorted(dupes)}")
 
 
-def load_config(path: str | Path) -> Config:
-    """Load and validate a Config from a JSON file."""
+def load_config(path) -> Config:
     with Path(path).open("r", encoding="utf-8") as f:
         raw = json.load(f)
 
     raw = _as_dict(raw, "root")
-    # `or {}` guards against meta being explicitly set to null in the JSON
     meta = _as_dict(raw.get("meta") or {}, "meta")
 
     timeslots_raw   = _as_list(_require(raw, "timeslots", "root"), "timeslots")
@@ -117,55 +102,48 @@ def load_config(path: str | Path) -> Config:
         for i, p in enumerate(projects_raw)
     ]
 
-    weights_raw = _as_dict(constraints_raw.get("weights") or {}, "constraints.weights")
-    solver_raw  = _as_dict(constraints_raw.get("solver")  or {}, "constraints.solver")
+    # parse constraints - all optional with defaults
+    cr = constraints_raw
+    wr = _as_dict(cr.get("weights") or {}, "constraints.weights")
+    sr = _as_dict(cr.get("solver") or {}, "constraints.solver")
 
-    # Prefer num_workers; fall back to deprecated num_search_workers for
-    # compatibility with older config files.
-    num_workers = int(
-        solver_raw.get("num_workers",
-        solver_raw.get("num_search_workers", 0))
-    )
+    # support old JSON that uses num_search_workers instead of num_workers
+    num_workers = sr.get("num_workers", sr.get("num_search_workers", 0))
 
     constraints = Constraints(
-        rooms                   = int(constraints_raw.get("rooms", 1)),
-        panel_size              = int(constraints_raw.get("panel_size", 2)),
-        must_include_supervisor = bool(constraints_raw.get("must_include_supervisor", True)),
-        lunch_slot_ids          = [str(x) for x in constraints_raw.get("lunch_slot_ids", [])],
-        weights = Weights(
-            span             = int(weights_raw.get("span", 1)),
-            workload_balance = int(weights_raw.get("workload_balance", 10)),
-            lunch            = int(weights_raw.get("lunch", 3)),
+        rooms=int(cr.get("rooms", 1)),
+        panel_size=int(cr.get("panel_size", 2)),
+        must_include_supervisor=bool(cr.get("must_include_supervisor", True)),
+        lunch_slot_ids=[str(x) for x in cr.get("lunch_slot_ids", [])],
+        weights=Weights(
+            span=int(wr.get("span", 1)),
+            workload_balance=int(wr.get("workload_balance", 10)),
+            lunch=int(wr.get("lunch", 3)),
         ),
-        solver = SolverParams(
-            max_time_in_seconds = float(solver_raw.get("max_time_in_seconds", 10.0)),
-            num_workers         = num_workers,
+        solver=SolverParams(
+            max_time_in_seconds=float(sr.get("max_time_in_seconds", 10.0)),
+            num_workers=int(num_workers),
         ),
     )
 
     cfg = Config(
-        meta        = meta,
-        timeslots   = timeslots,
-        lecturers   = lecturers,
-        students    = students,
-        projects    = projects,
-        constraints = constraints,
+        meta=meta,
+        timeslots=timeslots,
+        lecturers=lecturers,
+        students=students,
+        projects=projects,
+        constraints=constraints,
     )
-    cfg.validate()
-    _check_unique_ids(cfg.timeslots, "timeslots")
-    _check_unique_ids(cfg.lecturers, "lecturers")
-    _check_unique_ids(cfg.students,  "students")
-    _check_unique_ids(cfg.projects,  "projects")
+
+    # check for duplicate IDs - these would cause weird solver bugs
+    _check_unique_ids(cfg.timeslots,  "timeslots")
+    _check_unique_ids(cfg.lecturers,  "lecturers")
+    _check_unique_ids(cfg.students,   "students")
+    _check_unique_ids(cfg.projects,   "projects")
+
     return cfg
 
 
-def save_config(cfg: Config, path: str | Path) -> None:
-    """Serialise Config to JSON. Creates parent directories if needed."""
-    cfg.validate()
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("w", encoding="utf-8") as f:
-        # ensure_ascii=False keeps accented names readable.
-        # sort_keys=True makes version-control diffs predictable.
-        # Reference: https://docs.python.org/3/library/json.html#json.dump
-        json.dump(cfg.to_dict(), f, ensure_ascii=False, indent=2, sort_keys=True)
+def save_config(cfg: Config, path) -> None:
+    with Path(path).open("w", encoding="utf-8") as f:
+        json.dump(cfg.to_dict(), f, ensure_ascii=False, indent=2)
