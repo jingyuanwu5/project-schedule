@@ -1,6 +1,6 @@
 {
   "pythonVersion": "3.12",
   "pythonPlatform": "All",
-  "include": ["src", "tests", "main.py"],
+  "include": ["src/schedule_app", "tests", "main.py"],
   "extraPaths": ["src"]
 }

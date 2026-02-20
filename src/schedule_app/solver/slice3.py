@@ -27,13 +27,15 @@ from schedule_app.solver.result import ScheduleEntry, SolveResult
 from schedule_app.models import Config
 
 
-def _status_str(s: int) -> str:
-    return {
-        cp_model.OPTIMAL:       "OPTIMAL",
-        cp_model.FEASIBLE:      "FEASIBLE",
-        cp_model.INFEASIBLE:    "INFEASIBLE",
-        cp_model.MODEL_INVALID: "MODEL_INVALID",
-    }.get(s, "UNKNOWN")
+def _status_str(s: object) -> str:
+    """Convert a CP-SAT solver status value to a readable string."""
+    mapping = {
+        int(cp_model.OPTIMAL):       "OPTIMAL",
+        int(cp_model.FEASIBLE):      "FEASIBLE",
+        int(cp_model.INFEASIBLE):    "INFEASIBLE",
+        int(cp_model.MODEL_INVALID): "MODEL_INVALID",
+    }
+    return mapping.get(int(s), "UNKNOWN")  # type: ignore[call-overload]
 
 
 def solve_slice3(cfg: Config) -> SolveResult:
@@ -59,19 +61,19 @@ def solve_slice3(cfg: Config) -> SolveResult:
 
     x = {(p, t, r): model.new_bool_var(f"x_p{p}_t{t}_r{r}")
          for p in range(P) for t in range(T) for r in range(R)}
-    y = {(p, l): model.new_bool_var(f"y_p{p}_l{l}")
-         for p in range(P) for l in range(L)}
-    z = {(p, l, t, r): model.new_bool_var(f"z_p{p}_l{l}_t{t}_r{r}")
-         for p in range(P) for l in range(L) for t in range(T) for r in range(R)}
+    y = {(p, l): model.new_bool_var(f"y_p{p}_l{li}")
+         for p in range(P) for li in range(L)}
+    z = {(p, l, t, r): model.new_bool_var(f"z_p{p}_l{li}_t{t}_r{r}")
+         for p in range(P) for li in range(L) for t in range(T) for r in range(R)}
 
     # Linearise z = x AND y  (standard binary product linearisation)
     for p in range(P):
-        for l in range(L):
+        for li in range(L):
             for t in range(T):
                 for r in range(R):
-                    model.add(z[p, l, t, r] <= x[p, t, r])
-                    model.add(z[p, l, t, r] <= y[p, l])
-                    model.add(z[p, l, t, r] >= x[p, t, r] + y[p, l] - 1)
+                    model.add(z[p, li, t, r] <= x[p, t, r])
+                    model.add(z[p, li, t, r] <= y[p, li])
+                    model.add(z[p, li, t, r] >= x[p, t, r] + y[p, li] - 1)
 
     for p in range(P):
         model.add(sum(x[p, t, r] for t in range(T) for r in range(R)) == 1)
@@ -81,7 +83,7 @@ def solve_slice3(cfg: Config) -> SolveResult:
             model.add_at_most_one(x[p, t, r] for p in range(P))
 
     for p in range(P):
-        model.add(sum(y[p, l] for l in range(L)) == panel_size)
+        model.add(sum(y[p, li] for li in range(L)) == panel_size)
 
     # Supervisor in panel (corrected: == 1, not == 0)
     if cfg.constraints.must_include_supervisor:
@@ -91,18 +93,18 @@ def solve_slice3(cfg: Config) -> SolveResult:
                 model.add(y[p_i, sup_i] == 1)
 
     slot_id_at = [s.id for s in cfg.timeslots]
-    available  = [set(cfg.lecturers[l].available_slot_ids) for l in range(L)]
-    for l in range(L):
+    available  = [set(cfg.lecturers[li].available_slot_ids) for li in range(L)]
+    for li in range(L):
         for t in range(T):
-            if slot_id_at[t] not in available[l]:
+            if slot_id_at[t] not in available[li]:
                 for p in range(P):
                     for r in range(R):
-                        model.add(z[p, l, t, r] == 0)
+                        model.add(z[p, li, t, r] == 0)
 
-    for l in range(L):
+    for li in range(L):
         for t in range(T):
             model.add(
-                sum(z[p, l, t, r] for p in range(P) for r in range(R)) <= 1
+                sum(z[p, li, t, r] for p in range(P) for r in range(R)) <= 1
             )
 
     # max_per_day
@@ -110,11 +112,11 @@ def solve_slice3(cfg: Config) -> SolveResult:
     for t, slot in enumerate(cfg.timeslots):
         date_to_slots[slot.date].append(t)
 
-    for l, lec in enumerate(cfg.lecturers):
+    for li, lec in enumerate(cfg.lecturers):
         if lec.max_per_day is not None:
             for date_slots in date_to_slots.values():
                 model.add(
-                    sum(z[p, l, t, r]
+                    sum(z[p, li, t, r]
                         for p in range(P)
                         for t in date_slots
                         for r in range(R)) <= lec.max_per_day
@@ -150,10 +152,10 @@ def solve_slice3(cfg: Config) -> SolveResult:
 
     # 3. Workload balance via add_max_equality / add_min_equality
     counts = []
-    for l in range(L):
-        c = model.new_int_var(0, P, f"count_l{l}")
+    for li in range(L):
+        c = model.new_int_var(0, P, f"count_l{li}")
         model.add(c == sum(
-            z[p, l, t, r]
+            z[p, li, t, r]
             for p in range(P) for t in range(T) for r in range(R)
         ))
         counts.append(c)
@@ -166,9 +168,12 @@ def solve_slice3(cfg: Config) -> SolveResult:
     model.add(imbalance == max_c - min_c)
 
     obj = []
-    if w_span     > 0: obj.append(w_span     * last_t)
-    if w_workload > 0: obj.append(w_workload  * imbalance)
-    if w_lunch    > 0: obj.append(w_lunch     * lunch_penalty)
+    if w_span     > 0:
+        obj.append(w_span     * last_t)
+    if w_workload > 0:
+        obj.append(w_workload  * imbalance)
+    if w_lunch    > 0:
+        obj.append(w_lunch     * lunch_penalty)
     model.minimize(sum(obj) if obj else 0)
 
     solver = cp_model.CpSolver()
@@ -185,8 +190,8 @@ def solve_slice3(cfg: Config) -> SolveResult:
         for t in range(T):
             for r in range(R):
                 if solver.value(x[p, t, r]) == 1:
-                    panel = [cfg.lecturers[l].id for l in range(L)
-                             if solver.value(y[p, l]) == 1]
+                    panel = [cfg.lecturers[li].id for li in range(L)
+                             if solver.value(y[p, li]) == 1]
                     entries.append(ScheduleEntry(
                         project_id         = cfg.projects[p].id,
                         timeslot_id        = cfg.timeslots[t].id,

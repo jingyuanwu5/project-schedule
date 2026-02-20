@@ -1,10 +1,13 @@
 # GitHub Actions CI for 4YP Assessment Timetable Scheduler
 #
-# Runs on every push and pull request to main/master.
 # Three jobs:
-#   lint   — ruff checks style and common errors
-#   test   — pytest runs the full test suite
-#   types  — pyright checks static types (same config as VS Code Pylance)
+#   lint   — ruff checks style (F401, E, W, etc.)
+#   test   — pytest full test suite
+#   types  — pyright static type check
+#
+# tkinter note: ubuntu-latest does not ship python3-tk by default.
+# We install it via apt before running tests or type checks that
+# import any schedule_app.ui_tk module.
 
 name: CI
 
@@ -27,7 +30,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install ruff
-        run: pip install ruff>=0.6
+        run: pip install "ruff>=0.6"
 
       - name: Run ruff
         run: ruff check src/ tests/ main.py
@@ -43,7 +46,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install tkinter (required by schedule_app.ui_tk)
+        run: sudo apt-get install -y python3-tk
+
+      - name: Install project dependencies
         run: pip install -e ".[dev]"
 
       - name: Run pytest
@@ -60,8 +66,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install tkinter (required to resolve ui_tk imports)
+        run: sudo apt-get install -y python3-tk
+
+      - name: Install project dependencies
         run: pip install -e ".[dev]" pyright
 
       - name: Run pyright
-        run: pyright src/
+        run: pyright src/schedule_app/

@@ -26,7 +26,6 @@ from typing import Optional
 
 from schedule_app.models import Config
 
-_PAD = {"padx": 12, "pady": 4}
 
 
 class ConstraintsTab(ttk.Frame):
@@ -72,9 +71,9 @@ class ConstraintsTab(ttk.Frame):
         to: int,
         hint: str = "",
     ) -> None:
-        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", **_PAD)
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=12, pady=4)
         ttk.Spinbox(parent, textvariable=var, from_=from_, to=to, width=8).grid(
-            row=row, column=1, sticky="w", **_PAD
+            row=row, column=1, sticky="w", padx=12, pady=4
         )
         if hint:
             ttk.Label(
@@ -99,7 +98,7 @@ class ConstraintsTab(ttk.Frame):
             lf,
             text="Supervisor must be on the panel",
             variable=self._must_sup,
-        ).grid(row=1, column=0, columnspan=3, sticky="w", **_PAD)
+        ).grid(row=1, column=0, columnspan=3, sticky="w", padx=12, pady=4)
 
     def _build_lunch(self, parent: tk.Widget) -> None:
         lf = self._section(parent, "Lunch slots  (select slots to penalise)")
@@ -146,9 +145,9 @@ class ConstraintsTab(ttk.Frame):
         self._max_time    = tk.StringVar(value="10.0")
         self._num_workers = tk.StringVar(value="0")
 
-        ttk.Label(lf, text="Time limit (seconds):").grid(row=0, column=0, sticky="w", **_PAD)
+        ttk.Label(lf, text="Time limit (seconds):").grid(row=0, column=0, sticky="w", padx=12, pady=4)
         ttk.Entry(lf, textvariable=self._max_time, width=10).grid(
-            row=0, column=1, sticky="w", **_PAD
+            row=0, column=1, sticky="w", padx=12, pady=4
         )
         ttk.Label(
             lf,

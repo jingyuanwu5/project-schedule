@@ -1,6 +1,5 @@
 """Tests for JSON load/save roundtrip and structural validation."""
 import json
-import tempfile
 from pathlib import Path
 
 import pytest

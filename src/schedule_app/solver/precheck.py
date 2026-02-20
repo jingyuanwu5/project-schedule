@@ -28,7 +28,7 @@ class IdIndex:
 def build_index(cfg: Config) -> IdIndex:
     return IdIndex(
         slot_id_to_idx     = {s.id: i for i, s in enumerate(cfg.timeslots)},
-        lecturer_id_to_idx = {l.id: i for i, l in enumerate(cfg.lecturers)},
+        lecturer_id_to_idx = {lec.id: i for i, lec in enumerate(cfg.lecturers)},
         student_id_to_idx  = {s.id: i for i, s in enumerate(cfg.students)},
         project_id_to_idx  = {p.id: i for i, p in enumerate(cfg.projects)},
     )
@@ -83,13 +83,13 @@ def precheck(cfg: Config) -> Tuple[List[str], List[str]]:
                     f"Project '{p.id}' references unknown student '{sid}'."
                 )
 
-    for l in cfg.lecturers:
-        bad = [s for s in l.available_slot_ids if s not in known_slots]
+    for lec in cfg.lecturers:
+        bad = [s for s in lec.available_slot_ids if s not in known_slots]
         if bad:
-            errors.append(f"Lecturer '{l.id}' lists unknown slot id(s): {bad}")
-        if not l.available_slot_ids:
+            errors.append(f"Lecturer '{lec.id}' lists unknown slot id(s): {bad}")
+        if not lec.available_slot_ids:
             warnings.append(
-                f"Lecturer '{l.id}' has no available slots — any project "
+                f"Lecturer '{lec.id}' has no available slots — any project "
                 f"supervised by them will be INFEASIBLE."
             )
 

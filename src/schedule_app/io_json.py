@@ -89,13 +89,13 @@ def load_config(path: str | Path) -> Config:
 
     lecturers = [
         Lecturer(
-            id                 = str(_require(l, "id",   f"lecturers[{i}]")),
-            name               = str(_require(l, "name", f"lecturers[{i}]")),
-            available_slot_ids = [str(x) for x in l.get("available_slot_ids", [])],
-            max_per_day        = l.get("max_per_day"),
-            max_total          = l.get("max_total"),
+            id                 = str(_require(lec, "id",   f"lecturers[{i}]")),
+            name               = str(_require(lec, "name", f"lecturers[{i}]")),
+            available_slot_ids = [str(x) for x in lec.get("available_slot_ids", [])],
+            max_per_day        = lec.get("max_per_day"),
+            max_total          = lec.get("max_total"),
         )
-        for i, l in enumerate(lecturers_raw)
+        for i, lec in enumerate(lecturers_raw)
     ]
 
     students = [

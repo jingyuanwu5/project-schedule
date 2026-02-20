@@ -1,7 +1,6 @@
 """Tests for solver slice 1 — basic assignment without panel constraints."""
-import pytest
 
-from schedule_app.models import Config, Constraints, Lecturer, Project, Student, TimeSlot
+from schedule_app.models import Config, Lecturer, Project, Student, TimeSlot
 from schedule_app.solver.slice1 import solve_slice1
 
 

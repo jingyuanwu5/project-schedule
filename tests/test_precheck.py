@@ -1,7 +1,7 @@
 """Tests for precheck layer."""
 import pytest
 
-from schedule_app.models import Config, Constraints, Lecturer, Project, Student, TimeSlot
+from schedule_app.models import Config, Lecturer, Project, Student, TimeSlot
 from schedule_app.solver.precheck import PrecheckError, ensure_ok, precheck
 
 

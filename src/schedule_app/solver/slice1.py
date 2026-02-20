@@ -25,13 +25,15 @@ from schedule_app.solver.result import ScheduleEntry, SolveResult
 from schedule_app.models import Config
 
 
-def _status_str(s: int) -> str:
-    return {
-        cp_model.OPTIMAL:       "OPTIMAL",
-        cp_model.FEASIBLE:      "FEASIBLE",
-        cp_model.INFEASIBLE:    "INFEASIBLE",
-        cp_model.MODEL_INVALID: "MODEL_INVALID",
-    }.get(s, "UNKNOWN")
+def _status_str(s: object) -> str:
+    """Convert a CP-SAT solver status value to a readable string."""
+    mapping = {
+        int(cp_model.OPTIMAL):       "OPTIMAL",
+        int(cp_model.FEASIBLE):      "FEASIBLE",
+        int(cp_model.INFEASIBLE):    "INFEASIBLE",
+        int(cp_model.MODEL_INVALID): "MODEL_INVALID",
+    }
+    return mapping.get(int(s), "UNKNOWN")  # type: ignore[call-overload]
 
 
 def solve_slice1(cfg: Config) -> SolveResult:

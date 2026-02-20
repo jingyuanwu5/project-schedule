@@ -106,7 +106,7 @@ def main() -> None:
     print(f"\nSchedule ({len(result.entries)} entries):")
     slot_map  = {s.id: s   for s in cfg.timeslots}
     proj_map  = {p.id: p.title for p in cfg.projects}
-    lec_map   = {l.id: l.name  for l in cfg.lecturers}
+    lec_map   = {lec.id: lec.name  for lec in cfg.lecturers}
     slot_order = {s.id: i for i, s in enumerate(cfg.timeslots)}
 
     sorted_entries = sorted(

@@ -65,14 +65,15 @@ class AvailabilityTab(ttk.Frame):
         self.cfg = cfg
         # Initialise grid — default to whatever the model says
         self._grid = {}
-        avail_sets = [set(l.available_slot_ids) for l in cfg.lecturers]
+        avail_sets = [set(lec.available_slot_ids) for lec in cfg.lecturers]
         for l_i in range(len(cfg.lecturers)):
             for t_i, slot in enumerate(cfg.timeslots):
                 self._grid[(l_i, t_i)] = slot.id in avail_sets[l_i]
         self._draw()
 
     def flush_to_config(self) -> None:
-        if self.cfg is None: return
+        if self.cfg is None:
+            return
         for l_i, lec in enumerate(self.cfg.lecturers):
             lec.available_slot_ids = [
                 self.cfg.timeslots[t_i].id
@@ -83,7 +84,8 @@ class AvailabilityTab(ttk.Frame):
     # ── drawing ───────────────────────────────────────────────────────────────
 
     def _draw(self) -> None:
-        if self.cfg is None: return
+        if self.cfg is None:
+            return
         self.canvas.delete("all")
 
         L = len(self.cfg.lecturers)
@@ -121,17 +123,20 @@ class AvailabilityTab(ttk.Frame):
     # ── interaction ───────────────────────────────────────────────────────────
 
     def _on_click(self, event: tk.Event) -> None:
-        if self.cfg is None: return
+        if self.cfg is None:
+            return
         # Convert screen coords to canvas coords (accounts for scroll position)
         cx = self.canvas.canvasx(event.x)
         cy = self.canvas.canvasy(event.y)
-        if cx < HDR_W or cy < HDR_H: return
+        if cx < HDR_W or cy < HDR_H:
+            return
 
         t_i = int((cx - HDR_W) // CELL_W)
         l_i = int((cy - HDR_H) // CELL_H)
         T   = len(self.cfg.timeslots)
         L   = len(self.cfg.lecturers)
-        if t_i < 0 or t_i >= T or l_i < 0 or l_i >= L: return
+        if t_i < 0 or t_i >= T or l_i < 0 or l_i >= L:
+            return
 
         key                = (l_i, t_i)
         self._grid[key]    = not self._grid.get(key, False)

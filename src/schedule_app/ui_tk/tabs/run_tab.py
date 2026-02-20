@@ -131,7 +131,6 @@ class RunTab(ttk.Frame):
         self._result = result
         self._cfg    = cfg
 
-        colour  = _STATUS_COLOURS.get(result.status, "#555")
         obj_str = f"  (obj={result.objective_value})" if result.objective_value is not None else ""
         self._status_var.set(f"Status: {result.status}{obj_str}")
 
@@ -150,7 +149,7 @@ class RunTab(ttk.Frame):
         slot_order  = {s.id: i for i, s in enumerate(cfg.timeslots)}
         slot_map    = {s.id: s for s in cfg.timeslots}
         proj_map    = {p.id: p.title for p in cfg.projects}
-        lec_map     = {l.id: l.name  for l in cfg.lecturers}
+        lec_map     = {lec.id: lec.name  for lec in cfg.lecturers}
 
         sorted_entries = sorted(
             result.entries,
@@ -191,7 +190,8 @@ class RunTab(ttk.Frame):
             defaultextension=".json",
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
         )
-        if not path: return
+        if not path:
+            return
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self._result.to_dict(), f, ensure_ascii=False, indent=2)
         messagebox.showinfo("Saved", f"Result saved to {path}")
@@ -205,12 +205,13 @@ class RunTab(ttk.Frame):
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
         )
-        if not path: return
+        if not path:
+            return
 
         slot_order = {s.id: i for i, s in enumerate(self._cfg.timeslots)}
         slot_map   = {s.id: s for s in self._cfg.timeslots}
         proj_map   = {p.id: p.title for p in self._cfg.projects}
-        lec_map    = {l.id: l.name  for l in self._cfg.lecturers}
+        lec_map    = {lec.id: lec.name  for l in self._cfg.lecturers}
         sorted_entries = sorted(
             self._result.entries,
             key=lambda e: (slot_order.get(e.timeslot_id, 999), e.room),

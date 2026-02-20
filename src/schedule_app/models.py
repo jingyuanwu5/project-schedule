@@ -109,7 +109,7 @@ class Config:
             raise ValueError("All objective weights must be >= 0")
 
     def get_lecturer(self, lid: str) -> Optional[Lecturer]:
-        return next((l for l in self.lecturers if l.id == lid), None)
+        return next((lec for lec in self.lecturers if lec.id == lid), None)
 
     def get_student(self, sid: str) -> Optional[Student]:
         return next((s for s in self.students if s.id == sid), None)
